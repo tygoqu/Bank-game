@@ -1,134 +1,247 @@
-// --- 1. SLIDE DATA (Your exact data) ---
-const slides = [
-    { id: 0, bg: "bg-sunset", html: `<h1>Бизнесийн ёс зүй</h1><div class="subtitle">Хийж гүйцэтгэсэн : Б.Мөнхболд, Т.Есүй, Г.Нармандах</div>` },
-    { id: 1, bg: "bg-sunset", html: `<h2>1-р үе: Танилцуулга</h2><div class="content">Минжээ бол мэргэжлийн ахлах нягтлан бодогч...</div>` },
-    { id: 2, bg: "bg-sunset", requireChoice: true, html: `<h2>Захирлын шахалт</h2><div class="content"><div class="dialogue-box">Захирал: “Энэ барилгын засварын 20 сая төгрөгийг...”</div></div><div class="choices-container"><button class="choice-btn" onclick="makeChoice(3)">Зөвшөөрөх</button><button class="choice-btn" onclick="makeChoice(4)">Татгалзах</button></div>` },
-    { id: 3, bg: "bg-sunset", nextId: 13, html: `<h2>Үр дагавар: Зөвшөөрсөн</h2><div class="content"><b style="color:#FFB0B0;">Хог дээр үсрэв!</b></div>` },
-    { id: 4, bg: "bg-sunset", nextId: 13, html: `<h2>Үр дагавар: Татгалзсан</h2><div class="content"><b style="color:#90EE90;">Үнэнээр явж үхэр тэгргээр туулай гүйцэн, амжилт олов!</b></div>` },
-    // I shortened the array slightly for this example, but slide 13 is your ending!
-    { id: 13, bg: "bg-sunset", html: `<h1>Анхаарал хандуулсанд баярлалаа</h1><div class="subtitle">Слайд төгслөө. Одоо гарах товчийг дарна уу.</div>` }
-];
+// ==========================================
+// 1. ASSET LOADER
+// ==========================================
+const assets = {
+    bankInterior: new Image()
+};
+assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
 
-// --- 2. GAME ENGINE SETUP ---
+// ==========================================
+// 2. CORE ENGINE & STATE
+// ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+let W, H;
 
-let isDialogActive = false; // This tells the game to pause when talking
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
 
-// Player Data
-const player = { x: 100, y: 300, width: 32, height: 32, color: 'red', speed: 4 };
+const GS = {
+  balance: 500000,
+  points: 0,
+  currentLevel: 0,
+  phase: 'title', // title, playing, dialog
+  dialogQueue: [],
+  dialogStep: 0,
+};
 
-// NPC / Desk Data (This is what you bump into to start the story)
-const bossDesk = { x: 600, y: 280, width: 64, height: 64, color: 'blue' };
+const player = {
+  x: 60, y: 0, w: 32, h: 48,
+  vx: 0, vy: 0, speed: 5,
+  facing: 1, color: '#6495ED'
+};
 
-// Keyboard tracking
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+const cam = { x: 0, y: 0 };
 
-// --- 3. DIALOG SYSTEM (Modified from your code) ---
-let currentSlideId = 0;
-let historyStack = [0];
-const wrapper = document.getElementById('presentation-wrapper');
-const container = document.getElementById('presentation-container');
-const contentDiv = document.getElementById('slide-content');
+// ==========================================
+// 3. LEVEL DEFINITIONS (With your NPC!)
+// ==========================================
+const LEVELS = [
+  {
+    id: 1, name: 'Банкны дотор',
+    bgImage: assets.bankInterior,
+    floorY: 0.85, 
+    width: 1920, 
+    npcs: [
+      { 
+        x: 400, emoji: '👩‍💼', name: 'Теллер Болормаа', color: '#4169E1',
+        dialog: [
+          { speaker: 'Теллер Болормаа', emoji: '👩‍💼', text: 'Сайн байна уу! Төрийн банкинд тавтай морилно уу.' },
+          { speaker: 'Теллер Болормаа', emoji: '👩‍💼', text: 'Та гүйлгээ хийх гэж байна уу? Би танд тусалъя.' }
+        ]
+      }
+    ]
+  }
+];
 
-function renderSlide() {
-    const slide = slides.find(s => s.id === currentSlideId);
-    container.className = slide.bg;
-    contentDiv.innerHTML = `<div class="slide active">${slide.html}</div>`;
+// ==========================================
+// 4. INPUT HANDLING
+// ==========================================
+const keys = { left: false, right: false };
 
-    document.getElementById('btn-prev').disabled = historyStack.length <= 1;
-    
-    // If it's the last slide, show the EXIT button so we can go back to the game!
-    if (currentSlideId === 13) {
-        document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('btn-exit').style.display = 'block';
-    } else {
-        document.getElementById('btn-next').style.display = 'block';
-        document.getElementById('btn-exit').style.display = 'none';
-        document.getElementById('btn-next').disabled = slide.requireChoice;
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+  if (e.key === ' ' || e.key === 'Enter') handleInteract();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+});
+
+// Touch controls for mobile UI
+document.getElementById('btn-interact').addEventListener('click', handleInteract);
+document.getElementById('dialog-top').addEventListener('click', advanceDialog);
+
+document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); keys.left = true; });
+document.getElementById('btn-left').addEventListener('touchend', e => { e.preventDefault(); keys.left = false; });
+document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); keys.right = true; });
+document.getElementById('btn-right').addEventListener('touchend', e => { e.preventDefault(); keys.right = false; });
+
+// ==========================================
+// 5. DIALOG SYSTEM
+// ==========================================
+function showDialog(messages) {
+  if (!messages || messages.length === 0) return;
+  GS.phase = 'dialog';
+  GS.dialogStep = 0;
+  GS.dialogQueue = messages;
+  
+  // Stop player moving
+  keys.left = false; keys.right = false; 
+  showDialogStep();
+}
+
+function showDialogStep() {
+  const msg = GS.dialogQueue[GS.dialogStep];
+  if (!msg) { closeDialog(); return; }
+  
+  document.getElementById('dialog-portrait').textContent = msg.emoji || '🗣️';
+  document.getElementById('dialog-speaker').textContent = msg.speaker || '';
+  document.getElementById('dialog-text').textContent = msg.text;
+  document.getElementById('dialog-tap').style.display = GS.dialogStep < GS.dialogQueue.length - 1 ? 'block' : 'none';
+  
+  document.getElementById('dialog-box').classList.add('open');
+}
+
+function advanceDialog() {
+  if (GS.phase !== 'dialog') return;
+  GS.dialogStep++;
+  if (GS.dialogStep >= GS.dialogQueue.length) {
+    closeDialog();
+  } else {
+    showDialogStep();
+  }
+}
+
+function closeDialog() {
+  document.getElementById('dialog-box').classList.remove('open');
+  GS.phase = 'playing';
+}
+
+// ==========================================
+// 6. INTERACTION LOGIC
+// ==========================================
+function handleInteract() {
+  if (GS.phase === 'dialog') { advanceDialog(); return; }
+  if (GS.phase !== 'playing') return;
+
+  const lv = LEVELS[GS.currentLevel];
+  if (!lv) return;
+
+  // Check if player is near an NPC
+  for (const npc of lv.npcs) {
+    const actualDist = Math.abs((player.x + cam.x) - npc.x);
+    if (actualDist < 100) { // If player is within 100 pixels
+      showDialog(npc.dialog);
+      return;
     }
+  }
 }
 
-window.nextSlide = function() {
-    const slide = slides.find(s => s.id === currentSlideId);
-    if (slide.requireChoice || currentSlideId === 13) return;
-    let nextId = slide.nextId !== undefined ? slide.nextId : currentSlideId + 1;
-    currentSlideId = nextId;
-    historyStack.push(currentSlideId);
-    renderSlide();
+// ==========================================
+// 7. RENDERING ENGINE
+// ==========================================
+function getFloorY(lv) { return H * lv.floorY; }
+
+function drawBackground(lv) {
+  if (lv.bgImage && lv.bgImage.complete) {
+    const imgHeight = H; 
+    const imgWidth = lv.bgImage.width * (H / lv.bgImage.height); 
+    ctx.drawImage(lv.bgImage, -cam.x, 0, imgWidth, imgHeight);
+    lv.width = imgWidth; 
+  } else {
+    ctx.fillStyle = '#0a1628';
+    ctx.fillRect(0, 0, W, H);
+  }
 }
 
-window.makeChoice = function(targetId) {
-    currentSlideId = targetId;
-    historyStack.push(currentSlideId);
-    renderSlide();
+function drawPlayer() {
+  const lv = LEVELS[GS.currentLevel];
+  if (!lv) return;
+  const fy = getFloorY(lv);
+  const py = fy - player.h;
+
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x, py, player.w, player.h);
 }
 
-window.prevSlide = function() {
-    if (historyStack.length > 1) {
-        historyStack.pop();
-        currentSlideId = historyStack[historyStack.length - 1];
-        renderSlide();
-    }
+function drawNPC(npc, lv) {
+  const screenX = npc.x - cam.x;
+  // Don't draw if off-screen
+  if (screenX < -100 || screenX > W + 100) return; 
+  
+  const fy = getFloorY(lv);
+  
+  // Draw NPC Emoji
+  ctx.font = '40px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(npc.emoji, screenX, fy - 20);
+
+  // Check distance for the Interaction Hint
+  const actualDist = Math.abs((player.x + cam.x) - npc.x);
+  if (actualDist < 100) {
+    ctx.fillStyle = 'rgba(255,215,0,0.9)';
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillText('🗨️ [Space / Tap]', screenX, fy - 70);
+  }
 }
 
-// How we trigger the story from the game!
-function triggerStory() {
-    isDialogActive = true; 
-    wrapper.style.display = 'flex'; // Un-hide the UI
-    currentSlideId = 0; // Start at slide 0
-    historyStack = [0];
-    renderSlide();
+// ==========================================
+// 8. PHYSICS & CAMERA
+// ==========================================
+function updatePlayer() {
+  if (GS.phase !== 'playing') return;
+  const lv = LEVELS[GS.currentLevel];
+  if (!lv) return;
+
+  player.vx = 0;
+  if (keys.left) { player.vx = -player.speed; player.facing = -1; }
+  if (keys.right) { player.vx = player.speed; player.facing = 1; }
+
+  const worldX = player.x + cam.x;
+  const newWorldX = Math.max(0, Math.min(lv.width - player.w, worldX + player.vx));
+
+  const deadL = W * 0.4, deadR = W * 0.6;
+  const newScreenX = newWorldX - cam.x;
+  
+  if (newScreenX < deadL) cam.x = Math.max(0, newWorldX - deadL);
+  else if (newScreenX > deadR) cam.x = Math.min(lv.width - W, newWorldX - deadR);
+
+  player.x = newWorldX - cam.x;
 }
 
-// How we close the story and go back to walking!
-window.closeDialog = function() {
-    wrapper.style.display = 'none'; // Hide the UI
-    isDialogActive = false; // Unpause the game
-    // Bounce the player back slightly so they don't immediately re-trigger the desk
-    player.x -= 20; 
+// ==========================================
+// 9. MAIN LOOP & START
+// ==========================================
+function gameLoop() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (GS.phase === 'playing' || GS.phase === 'dialog') {
+    const lv = LEVELS[GS.currentLevel];
+    drawBackground(lv);
+    lv.npcs.forEach(n => drawNPC(n, lv));
+    updatePlayer();
+    drawPlayer();
+  }
+
+  requestAnimationFrame(gameLoop);
 }
 
-// --- 4. GAME LOOP ---
-function update() {
-    // If we are reading the slides, don't let the player move!
-    if (isDialogActive) return;
-
-    // Movement
-    if (keys['w']) player.y -= player.speed;
-    if (keys['s']) player.y += player.speed;
-    if (keys['a']) player.x -= player.speed;
-    if (keys['d']) player.x += player.speed;
-
-    // Very simple collision detection with the Boss Desk
-    if (player.x < bossDesk.x + bossDesk.width &&
-        player.x + player.width > bossDesk.x &&
-        player.y < bossDesk.y + bossDesk.height &&
-        player.y + player.height > bossDesk.y) {
-            triggerStory();
-    }
-}
-
-function draw() {
-    // Clear screen
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw Desk
-    ctx.fillStyle = bossDesk.color;
-    ctx.fillRect(bossDesk.x, bossDesk.y, bossDesk.width, bossDesk.height);
-
-    // Draw Player
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-}
-
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-}
-
-// Start the game!
-loop();
+window.beginGame = function() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('touch-controls').style.display = 'flex';
+  document.getElementById('hud').style.display = 'flex';
+  
+  document.getElementById('hud-bal').textContent = `₮ 500,000`;
+  document.getElementById('hud-pts').textContent = 0;
+  
+  GS.phase = 'playing';
+  gameLoop();
+};
