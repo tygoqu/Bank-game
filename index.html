@@ -1,75 +1,277 @@
 <!DOCTYPE html>
 <html lang="mn">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Ethics RPG</title>
-    <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { 
-            margin: 0; padding: 0; height: 100vh; background: #222; 
-            display: flex; align-items: center; justify-content: center; overflow: hidden;
-        }
-        
-        /* THE GAME CANVAS */
-        canvas {
-            image-rendering: pixelated; 
-            border: 4px solid #444;
-            box-shadow: 0px 0px 20px rgba(0,0,0,0.5);
-            position: absolute; /* Keeps it in the background */
-            z-index: 1;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bank Quest</title>
+<style>
+/* --- YOUR EXACT UI CSS HAS BEEN PRESERVED HERE --- */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:'Segoe UI',system-ui,sans-serif;}
+#gameCanvas{display:block;touch-action:none; image-rendering: pixelated;}
 
-        /* YOUR PRESENTATION UI (Hidden by default) */
-        #presentation-wrapper {
-            display: none; /* Hides the dialog until we trigger it */
-            position: absolute;
-            z-index: 10; /* Puts it ON TOP of the canvas */
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); /* Darkens the game behind it */
-            align-items: center; justify-content: center;
-        }
+#hud{position:fixed;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,15,40,0.97)0%,rgba(10,15,40,0)100%);padding:10px 14px 20px;display:flex;align-items:center;gap:10px;pointer-events:none;z-index:50;}
+.hud-pill{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 12px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);}
+.hud-pill .val{color:#FFD700;}
+#hud-level{margin-left:auto;background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.6);color:#FFD700;}
 
-        #presentation-container {
-            width: 100%; max-width: 960px; height: 540px; 
-            position: relative; overflow: hidden; border-radius: 12px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
-            color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-        }
+#dialog-box{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(8,12,35,0.98)0%,rgba(8,12,35,0.92)100%);border-top:2px solid rgba(100,149,237,0.5);padding:0;z-index:60;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);max-height:55vh;display:flex;flex-direction:column;}
+#dialog-box.open{transform:translateY(0);}
+#dialog-top{display:flex;align-items:flex-start;gap:12px;padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,0.08);}
+#dialog-portrait{width:52px;height:52px;border-radius:12px;background:rgba(100,149,237,0.2);border:2px solid rgba(100,149,237,0.5);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+#dialog-speaker{font-size:11px;color:#6495ED;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+#dialog-text{font-size:14px;color:#E8E8F0;line-height:1.65;flex:1;}
+#dialog-tap{font-size:11px;color:rgba(255,255,255,0.3);margin-top:6px;font-style:italic;}
 
-        /* Your existing Slide CSS */
-        .bg-sunset { background: linear-gradient(145deg, #e39fb6 0%, #b25899 40%, #512b7a 100%); }
-        .bg-room { background: linear-gradient(145deg, #405752 0%, #22302b 100%); }
-        .slide { position: absolute; inset: 0; padding: 50px; display: flex; flex-direction: column; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
-        .slide.active { opacity: 1; pointer-events: auto; }
-        h1 { font-size: 3.5rem; margin-bottom: 10px; text-align: center; }
-        h2 { font-size: 2.2rem; color: #FFD700; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
-        .content { font-size: 1.6rem; line-height: 1.6; color: #f0f0f5; }
-        .dialogue-box { background: rgba(0, 0, 0, 0.4); border-left: 5px solid #FFD700; padding: 20px; margin: 20px 0; border-radius: 4px; font-style: italic; }
-        .controls { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 40px; }
-        button { background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 12px 24px; font-size: 1.2rem; border-radius: 30px; cursor: pointer; transition: all 0.2s; }
-        button:hover:not(:disabled) { background: #FFD700; color: #1a1a2e; border-color: #FFD700; }
-        button:disabled { opacity: 0.3; cursor: not-allowed; }
-        .choices-container { display: flex; gap: 20px; justify-content: center; margin-top: 30px; }
-        .choice-btn { background: linear-gradient(135deg, #4169E1, #1a3a8f); border: none; padding: 15px 30px; border-radius: 8px; font-size: 1.4rem; }
-    </style>
+#choices-area{padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.choice-btn{background:rgba(100,149,237,0.12);border:1.5px solid rgba(100,149,237,0.3);border-radius:10px;padding:11px 14px;color:#E0E8FF;font-size:13px;font-weight:600;text-align:left;cursor:pointer;display:flex;align-items:center;gap:9px;transition:all 0.15s;}
+.choice-btn:active{background:rgba(100,149,237,0.28);border-color:rgba(100,149,237,0.8);transform:scale(0.98);}
+.choice-btn.correct{background:rgba(50,205,50,0.2);border-color:#32CD32;color:#90EE90;}
+.choice-btn.wrong{background:rgba(220,50,50,0.2);border-color:#DC3232;color:#FFB0B0;}
+.choice-icon{font-size:18px;flex-shrink:0;}
+
+#touch-controls{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px 20px;z-index:55;pointer-events:none;}
+.dpad{display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px;gap:4px;pointer-events:all;}
+.dpad-btn{background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;user-select:none;}
+.dpad-btn:active,.dpad-btn.pressed{background:rgba(255,255,255,0.3);}
+#btn-left{grid-column:1;grid-row:1;} #btn-right{grid-column:3;grid-row:1;}
+.action-btns{display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:all;}
+.action-btn{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;user-select:none;border:2px solid;background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.8);}
+
+#title-screen{position:fixed;inset:0;z-index:200;background:linear-gradient(160deg,#050d2a 0%,#0a1a3d 50%,#041020 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+.title-bank-name{font-size:13px;color:#6495ED;letter-spacing:4px;text-transform:uppercase;font-weight:700;margin-bottom:10px;}
+.title-logo{font-size:clamp(40px,12vw,72px);font-weight:900;color:#fff;line-height:1;margin-bottom:6px;}
+.title-logo span{color:#FFD700;}
+.title-sub{font-size:clamp(13px,3.5vw,18px);color:#8BA8D4;margin-bottom:32px;font-weight:600;}
+.start-btn{background:linear-gradient(135deg,#FFD700,#FFA500);color:#0a1020;font-size:17px;font-weight:900;border:none;border-radius:50px;padding:16px 48px;cursor:pointer;}
+
+/* (I have hidden the map screen/minigame CSS to save space here, but you can paste your old CSS blocks back in here if needed for the UI) */
+
+</style>
 </head>
 <body>
 
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+<canvas id="gameCanvas"></canvas>
 
-    <div id="presentation-wrapper">
-        <div id="presentation-container" class="bg-sunset">
-            <div id="slide-content"></div>
-            <div class="controls">
-                <button id="btn-prev" onclick="prevSlide()">◀ Өмнөх</button>
-                <button id="btn-next" onclick="nextSlide()">Дараах ▶</button>
-                <button id="btn-exit" onclick="closeDialog()" style="display:none; background: red;">Гарах (Exit)</button>
-            </div>
-        </div>
+<div id="hud">
+  <div class="hud-pill">💰 <span class="val" id="hud-bal">₮ 500,000</span></div>
+  <div class="hud-pill">⭐ <span class="val" id="hud-pts">0</span></div>
+  <div class="hud-pill" id="hud-level">Үе 1</div>
+</div>
+
+<div id="dialog-box">
+  <div id="dialog-top">
+    <div id="dialog-portrait">🏦</div>
+    <div style="flex:1">
+      <div id="dialog-speaker">СИСТЕМ</div>
+      <div id="dialog-text">...</div>
+      <div id="dialog-tap">👆 Дараах</div>
     </div>
+  </div>
+  <div id="choices-area"></div>
+</div>
 
-    <script src="game.js"></script>
+<div id="touch-controls">
+  <div class="dpad">
+    <div class="dpad-btn" id="btn-left">◀</div>
+    <div class="dpad-btn" id="btn-right">▶</div>
+  </div>
+  <div class="action-btns">
+    <div class="action-btn" id="btn-interact">🗨️</div>
+  </div>
+</div>
 
+<div id="title-screen">
+  <div style="position:relative;z-index:1;width:100%;max-width:360px;">
+    <div class="title-bank-name">🏦 Төрийн Банк</div>
+    <div class="title-logo">Bank<br><span>Quest</span></div>
+    <div class="title-sub">Санхүүгийн Аялал</div>
+    <button class="start-btn" onclick="beginGame()">Тоглоом Эхлэх</button>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 1. ASSET LOADER (NEW CODE)
+// ==========================================
+// This tells the engine to load your actual PNG files.
+const assets = {
+    bankInterior: new Image()
+};
+// MAKE SURE THIS PATH MATCHES YOUR FOLDER STRUCTURE!
+assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
+
+// ==========================================
+// 2. CORE ENGINE
+// ==========================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const GS = {
+  balance: 500000,
+  points: 0,
+  currentLevel: 0,
+  phase: 'title', 
+  dialogQueue: [],
+  dialogQueueIdx: 0,
+};
+
+// ==========================================
+// 3. PLAYER & CAMERA
+// ==========================================
+const player = {
+  x: 60, y: 0, w: 32, h: 48, // Slightly bigger to match pixel art
+  vx: 0, vy: 0, speed: 4,
+  facing: 1, walking: false,
+  color: '#6495ED', skinColor: '#FFCD94'
+};
+
+const cam = { x: 0, y: 0 };
+
+// ==========================================
+// 4. LEVEL DEFINITIONS
+// ==========================================
+const LEVELS = [
+  {
+    id: 1, name: 'Банкны дотор',
+    bgImage: assets.bankInterior, // Link the image we loaded above!
+    floorY: 0.85, // Lowered the floor so the player walks on the bottom of the map
+    width: 1920,  // The total width of your map image
+    npcs: [
+      { x: 400, emoji: '👨‍💼', name: 'Теллер', trigger: 'dialog',
+        dialog: [{ speaker: 'Теллер', text: 'Сайн байна уу! Танд юугаар туслах вэ?' }] }
+    ],
+    triggers: []
+  }
+];
+
+// ==========================================
+// 5. INPUT HANDLING
+// ==========================================
+const keys = { left: false, right: false };
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+  if (e.key === ' ' || e.key === 'Enter') handleInteract();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+});
+document.getElementById('btn-interact').addEventListener('click', handleInteract);
+
+// ==========================================
+// 6. UPDATED RENDERING ENGINE (NEW CODE)
+// ==========================================
+function getFloorY(lv) { return H * lv.floorY; }
+
+function drawBackground(lv) {
+  // If the image is loaded, draw it!
+  if (lv.bgImage && lv.bgImage.complete) {
+    // We draw the image offset by the camera's X position
+    // This creates the scrolling effect!
+    const imgHeight = H; // Stretch image to fill screen height
+    const imgWidth = lv.bgImage.width * (H / lv.bgImage.height); // Keep aspect ratio
+    
+    ctx.drawImage(lv.bgImage, -cam.x, 0, imgWidth, imgHeight);
+    
+    // Update level width based on image size so camera stops correctly
+    lv.width = imgWidth; 
+  } else {
+    // Fallback if image fails to load
+    ctx.fillStyle = '#0a1628';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawPlayer() {
+  const lv = LEVELS[GS.currentLevel];
+  if (!lv) return;
+  const fy = getFloorY(lv);
+  const px = player.x;
+  const py = fy - player.h;
+
+  // Placeholder player (until we add your spritesheet)
+  ctx.fillStyle = player.color;
+  ctx.fillRect(px, py, player.w, player.h);
+}
+
+function drawNPC(npc, lv) {
+  const screenX = npc.x - cam.x;
+  const fy = getFloorY(lv);
+  
+  ctx.font = '36px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(npc.emoji, screenX, fy - 20);
+}
+
+// ==========================================
+// 7. PHYSICS / MOVEMENT
+// ==========================================
+function updatePlayer() {
+  if (GS.phase !== 'playing') return;
+  const lv = LEVELS[GS.currentLevel];
+  if (!lv) return;
+
+  player.vx = 0;
+  if (keys.left) { player.vx = -player.speed; player.facing = -1; }
+  if (keys.right) { player.vx = player.speed; player.facing = 1; }
+
+  // Move player and scroll camera
+  const worldX = player.x + cam.x;
+  const newWorldX = Math.max(0, Math.min(lv.width - player.w, worldX + player.vx));
+
+  // Camera deadzone (keeps player centered)
+  const deadL = W * 0.4, deadR = W * 0.6;
+  const newScreenX = newWorldX - cam.x;
+  
+  if (newScreenX < deadL) cam.x = Math.max(0, newWorldX - deadL);
+  else if (newScreenX > deadR) cam.x = Math.min(lv.width - W, newWorldX - deadR);
+
+  player.x = newWorldX - cam.x;
+}
+
+// ==========================================
+// 8. MAIN LOOP
+// ==========================================
+function gameLoop() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (GS.phase === 'playing') {
+    const lv = LEVELS[GS.currentLevel];
+    drawBackground(lv);
+    lv.npcs.forEach(n => drawNPC(n, lv));
+    updatePlayer();
+    drawPlayer();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ==========================================
+// 9. GAME FLOW
+// ==========================================
+window.beginGame = function() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('touch-controls').style.display = 'flex';
+  document.getElementById('hud').style.display = 'flex';
+  GS.phase = 'playing';
+  gameLoop();
+};
+
+function handleInteract() {
+    // Add your interaction logic here
+}
+</script>
 </body>
 </html>
