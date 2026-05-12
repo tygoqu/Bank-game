@@ -1,13 +1,16 @@
 // ==========================================
-// 1. ASSET LOADER (BYPASS VERSION)
+// 1. ASSET LOADER (FLIPBOOK VERSION)
 // ==========================================
 const assets = {
     bankInterior: new Image(),
-    playerSprite: new Image()
+    playerFrames: [new Image(), new Image(), new Image(), new Image()]
 };
 
 assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
-assets.playerSprite.src = 'assets/player_walk.png'; 
+assets.playerFrames[0].src = 'assets/player_walk_1.png'; 
+assets.playerFrames[1].src = 'assets/player_walk_2.png'; 
+assets.playerFrames[2].src = 'assets/player_walk_3.png'; 
+assets.playerFrames[3].src = 'assets/player_walk_4.png'; 
 
 // Force unlock the start button when the page loads
 window.onload = () => {
@@ -47,11 +50,11 @@ const GS = {
 };
 
 // ==========================================
-// 3. PLAYER SETTINGS 
+// 3. PLAYER SETTINGS (NO SLICING MATH NEEDED!)
 // ==========================================
 const player = {
   x: 950, y: 700, // Spawn Point in Lobby
-  w: 48, h: 96,   // Render size on screen
+  w: 48, h: 96,   // Render size on screen (Adjust if she's too big)
   vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
   currentFrame: 0,  
@@ -244,10 +247,10 @@ function drawPlayer() {
   const drawX = player.x - cam.x;
   const drawY = player.y - cam.y;
 
-  // Bulletproof slicing math: automatically uses the image's real size
-  if (assets.playerSprite && assets.playerSprite.complete && assets.playerSprite.width > 0) {
-      const sWidth = assets.playerSprite.width / 4; 
-      const sHeight = assets.playerSprite.height;
+  const currentImg = assets.playerFrames[player.currentFrame];
+
+  // If the image is successfully loaded, draw the character!
+  if (currentImg && currentImg.complete && currentImg.width > 0) {
       
       if (player.walking) {
           player.frameTimer++;
@@ -261,15 +264,17 @@ function drawPlayer() {
 
       ctx.save();
       if (player.facing === -1) {
+          // Face left
           ctx.translate(drawX + player.w, drawY);
           ctx.scale(-1, 1);
-          ctx.drawImage(assets.playerSprite, player.currentFrame * sWidth, 0, sWidth, sHeight, 0, 0, player.w, player.h);
+          ctx.drawImage(assets.playerFrames[player.currentFrame], 0, 0, player.w, player.h);
       } else {
-          ctx.drawImage(assets.playerSprite, player.currentFrame * sWidth, 0, sWidth, sHeight, drawX, drawY, player.w, player.h);
+          // Face right
+          ctx.drawImage(assets.playerFrames[player.currentFrame], drawX, drawY, player.w, player.h);
       }
       ctx.restore();
   } else {
-      // Fallback box
+      // If the image fails to load, draw the yellow fallback box
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(drawX, drawY, player.w, player.h);
   }
@@ -349,7 +354,10 @@ function gameLoop() {
   if (GS.phase === 'playing' || GS.phase === 'dialog') {
     const lv = LEVELS[GS.currentLevel];
     drawBackground(lv);
-    drawHitboxes(lv); 
+    if (DEBUG_HITBOXES) {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.4)'; 
+        for (let box of lv.hitboxes) ctx.fillRect(box.x - cam.x, box.y - cam.y, box.w, box.h);
+    }
     lv.npcs.forEach(n => drawNPC(n, lv));
     updatePlayer();
     drawPlayer();
@@ -359,6 +367,7 @@ function gameLoop() {
 }
 
 window.beginGame = function() {
+  if (document.querySelector('.start-btn').disabled) return; 
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('touch-controls').style.display = 'flex';
   document.getElementById('hud').style.display = 'flex';
