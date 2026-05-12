@@ -51,22 +51,26 @@ const GS = {
 };
 
 // ==========================================
-// 3. PLAYER SETTINGS (WITH ANIMATION)
+// 3. PLAYER SETTINGS
 // ==========================================
 const player = {
-  x: 100, y: 0, 
-  w: 48, h: 96, // Draw size on canvas
-  vx: 0, speed: 5,
+  x: 800, y: 500, 
+  
+  // 1. RENDER SIZE: This is how big the character appears on screen!
+  // Try lowering these numbers to shrink the player. 
+  w: 24,  // Changed from 48
+  h: 48,  // Changed from 96
+  
+  vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
   
-  // Animation variables
-  spriteWidth: 32,  // Set to the width of ONE frame of your PNG
-  spriteHeight: 64, // Set to the height of ONE frame of your PNG
+  // 2. SOURCE SIZE: This is the actual math used to slice your PNG.
+  // We need to calculate this based on your exact file.
+  spriteWidth: 64,   // See instructions below!
+  spriteHeight: 128, // See instructions below!
   currentFrame: 0,  
   frameTimer: 0     
 };
-const cam = { x: 0, y: 0 };
-
 // ==========================================
 // 4. LEVEL & NPC DEFINITIONS
 // ==========================================
