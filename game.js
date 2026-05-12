@@ -1,12 +1,12 @@
 // ==========================================
-// 1. ASSET LOADER (BYPASS VERSION)
+// 1. ASSET LOADER
 // ==========================================
 const assets = {
     bankInterior: new Image(),
     playerSprite: new Image()
 };
 
-// This forces the button to unlock immediately
+// Update these paths to match your folder exactly
 assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
 assets.playerSprite.src = 'assets/player_walk.png'; 
 
@@ -16,67 +16,163 @@ assets.playerSprite.src = 'assets/player_walk.png';
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
-const DEBUG_HITBOXES = false; // Set to true if you want to see walls
+const DEBUG_HITBOXES = false; // Set to true to see red collision boxes
 
 function resize() {
-  W = window.innerWidth;
-  H = window.innerHeight;
-  canvas.width = W;
-  canvas.height = H;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W; canvas.height = H;
   ctx.imageSmoothingEnabled = false; 
 }
 resize();
 window.addEventListener('resize', resize);
 
 const GS = {
-  balance: 500000,
-  points: 0,
-  currentLevel: 0,
-  phase: 'title', 
-  dialogQueue: [],
-  dialogStep: 0,
+  balance: 500000, points: 0, currentLevel: 0,
+  phase: 'title', dialogQueue: [], dialogStep: 0,
 };
 
-// ==========================================
-// 3. PLAYER SETTINGS (FIXED FOR YOUR STRIP)
-// ==========================================
 const player = {
-  x: 800, y: 500, // Starting position in the lobby
-  
-  // RENDER SIZE: Shrink these if she is too big
-  w: 40, 
-  h: 80, 
-  
+  x: 950, y: 700, // Lobby Spawn
+  w: 40, h: 80,   // Render size
   vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
-  
-  // SLICING MATH: Based on your 4-frame image
-  // Width should be [Total Image Width / 4]
-  // Height should be [Total Image Height]
-  spriteWidth: 200,  // ADJUST THIS: Total width of player_walk.png divided by 4
-  spriteHeight: 400, // ADJUST THIS: Total height of player_walk.png
-  currentFrame: 0,  
-  frameTimer: 0     
+  spriteWidth: 200, // Based on your 800px wide 4-frame image
+  spriteHeight: 400, // Based on your 400px tall image
+  currentFrame: 0, frameTimer: 0     
 };
 const cam = { x: 0, y: 0 };
 
-// ... (Keep the rest of your logic, LEVELS, and updatePlayer functions) ...
+// ==========================================
+// 3. LEVEL & COLLISIONS
+// ==========================================
+const LEVELS = [{
+    id: 1, name: 'Банк',
+    bgImage: assets.bankInterior,
+    hitboxes: [
+        { x: 0, y: 0, w: 1920, h: 320 },      // Top Wall / Counters
+        { x: 0, y: 0, w: 100, h: 1080 },      // Left Wall
+        { x: 1820, y: 0, w: 100, h: 1080 },   // Right Wall
+        { x: 0, y: 980, w: 1920, h: 100 },    // Bottom Wall
+        { x: 0, y: 550, w: 450, h: 430 },     // Vault Area
+        { x: 450, y: 550, w: 300, h: 100 },   // Railings
+        { x: 1450, y: 550, w: 470, h: 100 }   // Office Dividers
+    ],
+    npcs: [
+      { x: 1030, y: 340, emoji: '👩‍💼', name: 'Болормаа', 
+        dialog: [{ speaker: 'Болормаа', text: 'Төрийн банкинд тавтай морилно уу.' }] }
+    ]
+}];
 
 // ==========================================
-// 9. RE-LINKED START BUTTON
+// 4. PHYSICS & MOVEMENT
 // ==========================================
-// Force unlock the start button regardless of image status
-window.onload = () => {
-    const startBtn = document.querySelector('.start-btn');
-    startBtn.textContent = "Тоглоом Эхлэх (Start Game)";
-    startBtn.disabled = false;
-    startBtn.style.opacity = "1";
-};
+function checkCollision(nx, ny, hitboxes) {
+    const pw = player.w * 0.8;
+    const ph = 20; // Collision only at feet
+    const px = nx + (player.w - pw) / 2;
+    const py = ny + player.h - ph;
+
+    for (let b of hitboxes) {
+        if (px < b.x + b.w && px + pw > b.x && py < b.y + b.h && py + ph > b.y) return true;
+    }
+    return false;
+}
+
+const keys = { left: false, right: false, up: false, down: false };
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'a' || k === 'arrowleft') keys.left = true;
+  if (k === 'd' || k === 'arrowright') keys.right = true;
+  if (k === 'w' || k === 'arrowup') keys.up = true;
+  if (k === 's' || k === 'arrowdown') keys.down = true;
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'a' || k === 'arrowleft') keys.left = false;
+  if (k === 'd' || k === 'arrowright') keys.right = false;
+  if (k === 'w' || k === 'arrowup') keys.up = false;
+  if (k === 's' || k === 'arrowdown') keys.down = false;
+});
+
+function updatePlayer() {
+  if (GS.phase !== 'playing') return;
+  const lv = LEVELS[GS.currentLevel];
+  player.vx = 0; player.vy = 0;
+
+  if (keys.left) { player.vx = -player.speed; player.facing = -1; }
+  if (keys.right) { player.vx = player.speed; player.facing = 1; }
+  if (keys.up) player.vy = -player.speed;
+  if (keys.down) player.vy = player.speed;
+
+  player.walking = (player.vx !== 0 || player.vy !== 0);
+
+  if (!checkCollision(player.x + player.vx, player.y, lv.hitboxes)) player.x += player.vx;
+  if (!checkCollision(player.x, player.y + player.vy, lv.hitboxes)) player.y += player.vy;
+
+  cam.x = player.x - W / 2;
+  cam.y = player.y - H / 2;
+  
+  // Camera Clamping
+  cam.x = Math.max(0, Math.min(cam.x, 1920 - W));
+  cam.y = Math.max(0, Math.min(cam.y, 1080 - H));
+}
+
+// ==========================================
+// 5. DRAWING
+// ==========================================
+function gameLoop() {
+  ctx.clearRect(0, 0, W, H);
+  const lv = LEVELS[GS.currentLevel];
+
+  if (GS.phase === 'playing' || GS.phase === 'dialog') {
+    ctx.drawImage(lv.bgImage, -cam.x, -cam.y);
+    
+    if (DEBUG_HITBOXES) {
+        ctx.fillStyle = 'rgba(255,0,0,0.3)';
+        lv.hitboxes.forEach(b => ctx.fillRect(b.x - cam.x, b.y - cam.y, b.w, b.h));
+    }
+
+    lv.npcs.forEach(n => {
+        ctx.font = '40px serif';
+        ctx.fillText(n.emoji, n.x - cam.x, n.y - cam.y);
+    });
+
+    updatePlayer();
+    
+    // Animate
+    if (player.walking) {
+        player.frameTimer++;
+        if (player.frameTimer > 10) {
+            player.currentFrame = (player.currentFrame + 1) % 4;
+            player.frameTimer = 0;
+        }
+    } else player.currentFrame = 0;
+
+    // Draw Player
+    ctx.save();
+    const dx = player.x - cam.x;
+    const dy = player.y - cam.y;
+    if (player.facing === -1) {
+        ctx.translate(dx + player.w, dy);
+        ctx.scale(-1, 1);
+        ctx.drawImage(assets.playerSprite, player.currentFrame * player.spriteWidth, 0, player.spriteWidth, player.spriteHeight, 0, 0, player.w, player.h);
+    } else {
+        ctx.drawImage(assets.playerSprite, player.currentFrame * player.spriteWidth, 0, player.spriteWidth, player.spriteHeight, dx, dy, player.w, player.h);
+    }
+    ctx.restore();
+  }
+  requestAnimationFrame(gameLoop);
+}
 
 window.beginGame = function() {
   document.getElementById('title-screen').style.display = 'none';
-  document.getElementById('touch-controls').style.display = 'flex';
   document.getElementById('hud').style.display = 'flex';
   GS.phase = 'playing';
   gameLoop();
+};
+
+window.onload = () => {
+    const btn = document.querySelector('.start-btn');
+    btn.textContent = "Тоглоом Эхлэх";
+    btn.disabled = false;
 };
