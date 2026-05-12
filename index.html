@@ -86,9 +86,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:
 </div>
 
 <div id="touch-controls" style="display:none;">
-  <div class="dpad">
-    <div class="dpad-btn" id="btn-left">◀</div>
-    <div class="dpad-btn" id="btn-right">▶</div>
+  <div class="dpad" style="grid-template-columns: 44px 44px 44px; grid-template-rows: 44px 44px 44px;">
+    <div style="grid-column:2; grid-row:1;" class="dpad-btn" id="btn-up">▲</div>
+    <div style="grid-column:1; grid-row:2;" class="dpad-btn" id="btn-left">◀</div>
+    <div style="grid-column:3; grid-row:2;" class="dpad-btn" id="btn-right">▶</div>
+    <div style="grid-column:2; grid-row:3;" class="dpad-btn" id="btn-down">▼</div>
   </div>
   <div class="action-btns">
     <div class="action-btn" id="btn-interact">🗨️</div>
