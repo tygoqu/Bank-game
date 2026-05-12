@@ -1,15 +1,14 @@
 // ==========================================
-// 1. ASSET LOADER (AUTO-SLICING VERSION)
+// 1. ASSET LOADER (REPO-ACCURATE VERSION)
 // ==========================================
 const assets = {
     bankInterior: new Image(),
-    playerSprite: new Image() // We are back to the single Sprite Strip!
+    playerSprite: new Image()
 };
 
 let loadedAssets = 0;
 const totalAssets = 2;
 
-// The preloader waits for both images to load, then unlocks the button
 function assetLoaded() {
     loadedAssets++;
     if (loadedAssets === totalAssets) {
@@ -21,19 +20,18 @@ function assetLoaded() {
     }
 }
 
-// Attach the onload event to the images
 assets.bankInterior.onload = assetLoaded;
 assets.playerSprite.onload = assetLoaded;
 
-// Fire off the loading
+// Exact paths from your repo
 assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
 assets.playerSprite.src = 'assets/player_walk.png'; 
 
-// EMERGENCY BYPASS: If the images fail to load due to server issues, unlock the button anyway after 2 seconds
+// Failsafe Bypass: If GitHub Pages or Vercel blocks it initially, unlock anyway after 2 seconds
 setTimeout(() => {
     const startBtn = document.getElementById('main-start-btn');
     if (startBtn && startBtn.disabled) {
-        startBtn.textContent = "Тоглоом Эхлэх (Bypass)";
+        startBtn.textContent = "Тоглоом Эхлэх (Алгасах)";
         startBtn.disabled = false;
     }
 }, 2000);
@@ -45,7 +43,9 @@ setTimeout(() => {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
-const DEBUG_HITBOXES = false; // Set to true to see the walls!
+
+// Turn this to true to see the collision boxes
+const DEBUG_HITBOXES = false; 
 
 function resize() {
   W = window.innerWidth;
@@ -71,7 +71,7 @@ const GS = {
 // ==========================================
 const player = {
   x: 950, y: 700, // Spawn Point in Lobby
-  w: 48, h: 96,   // Render size on screen
+  w: 48, h: 96,   // Render Size (how big she is on screen)
   vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
   currentFrame: 0,  
@@ -87,7 +87,7 @@ const LEVELS = [
     id: 1, name: 'Банкны дотор',
     bgImage: assets.bankInterior,
     
-    // Invisible Walls mapped roughly to your bank_interior image
+    // Invisible Walls
     hitboxes: [
         { x: 0, y: 0, w: 1920, h: 320 },      // Top Counters
         { x: 0, y: 0, w: 100, h: 1080 },      // Left Wall
@@ -139,7 +139,7 @@ document.addEventListener('keyup', e => {
   if (k === 'arrowdown' || k === 's') keys.down = false;
 });
 
-// Mobile Touch Setup
+// Mobile Controls
 const touchControlSetup = (id, key) => {
     const el = document.getElementById(id);
     if(el) {
@@ -264,9 +264,9 @@ function drawPlayer() {
   const drawX = player.x - cam.x;
   const drawY = player.y - cam.y;
 
-  // Bulletproof slicing math: automatically uses the image's real size
+  // Bulletproof slicing math: automatically uses the image's real size from your repo
   if (assets.playerSprite && assets.playerSprite.complete && assets.playerSprite.width > 0) {
-      // The image is 4 frames wide, so we divide the total width by 4
+      // The image is exactly 4 frames wide, so we divide the total width by 4
       const sWidth = assets.playerSprite.width / 4; 
       const sHeight = assets.playerSprite.height;
       
@@ -292,7 +292,7 @@ function drawPlayer() {
       }
       ctx.restore();
   } else {
-      // Fallback box ONLY if the image failed to load
+      // Fallback box ONLY if the image failed to load completely
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(drawX, drawY, player.w, player.h);
   }
@@ -382,6 +382,7 @@ function gameLoop() {
 }
 
 window.beginGame = function() {
+  if (document.querySelector('.start-btn').disabled) return; 
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('touch-controls').style.display = 'flex';
   document.getElementById('hud').style.display = 'flex';
