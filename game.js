@@ -43,25 +43,29 @@ const player = {
 const cam = { x: 0, y: 0 };
 
 // ==========================================
-// 3. LEVEL & COLLISIONS
+// 3. PLAYER SETTINGS (CALIBRATED)
 // ==========================================
-const LEVELS = [{
-    id: 1, name: 'Банк',
-    bgImage: assets.bankInterior,
-    hitboxes: [
-        { x: 0, y: 0, w: 1920, h: 320 },      // Top Wall / Counters
-        { x: 0, y: 0, w: 100, h: 1080 },      // Left Wall
-        { x: 1820, y: 0, w: 100, h: 1080 },   // Right Wall
-        { x: 0, y: 980, w: 1920, h: 100 },    // Bottom Wall
-        { x: 0, y: 550, w: 450, h: 430 },     // Vault Area
-        { x: 450, y: 550, w: 300, h: 100 },   // Railings
-        { x: 1450, y: 550, w: 470, h: 100 }   // Office Dividers
-    ],
-    npcs: [
-      { x: 1030, y: 340, emoji: '👩‍💼', name: 'Болормаа', 
-        dialog: [{ speaker: 'Болормаа', text: 'Төрийн банкинд тавтай морилно уу.' }] }
-    ]
-}];
+const player = {
+  x: 800, y: 500, 
+  
+  // 1. RENDER SIZE: Increase these to make her bigger!
+  // Try 80 and 160 to make her stand out in the bank interior.
+  w: 80, 
+  h: 160, 
+  
+  vx: 0, vy: 0, speed: 6, // Slightly faster speed for a bigger character
+  facing: 1, walking: false,
+  
+  // 2. SPRITE MATH: Check your file properties!
+  // Right-click player_walk.png -> Properties -> Details.
+  // Take 'Width' and divide by 4. Put that number here:
+  spriteWidth: 128,  // Change this to (Total Image Width / 4)
+  spriteHeight: 256, // Change this to (Total Image Height)
+  
+  currentFrame: 0,  
+  frameTimer: 0     
+};
+
 
 // ==========================================
 // 4. PHYSICS & MOVEMENT
@@ -176,3 +180,14 @@ window.onload = () => {
     btn.textContent = "Тоглоом Эхлэх";
     btn.disabled = false;
 };
+// ==========================================
+// 7. RENDERING ENGINE (SCALING FIX)
+// ==========================================
+function drawBackground(lv) {
+  if (lv.bgImage && lv.bgImage.complete) {
+    // This draws the bank at its natural size so it doesn't look blurry
+    ctx.drawImage(lv.bgImage, -cam.x, -cam.y); 
+    lv.width = lv.bgImage.width; 
+    lv.height = lv.bgImage.height;
+  }
+}
