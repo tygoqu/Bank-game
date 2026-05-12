@@ -1,26 +1,43 @@
 // ==========================================
-// 1. ASSET LOADER (FLIPBOOK VERSION)
+// 1. ASSET LOADER (AUTO-SLICING VERSION)
 // ==========================================
 const assets = {
     bankInterior: new Image(),
-    playerFrames: [new Image(), new Image(), new Image(), new Image()]
+    playerSprite: new Image() // We are back to the single Sprite Strip!
 };
 
-assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
-assets.playerFrames[0].src = 'assets/player_walk_1.png'; 
-assets.playerFrames[1].src = 'assets/player_walk_2.png'; 
-assets.playerFrames[2].src = 'assets/player_walk_3.png'; 
-assets.playerFrames[3].src = 'assets/player_walk_4.png'; 
+let loadedAssets = 0;
+const totalAssets = 2;
 
-// Force unlock the start button when the page loads
-window.onload = () => {
-    const startBtn = document.querySelector('.start-btn');
-    if (startBtn) {
-        startBtn.textContent = "Тоглоом Эхлэх";
-        startBtn.disabled = false;
-        startBtn.style.opacity = "1";
+// The preloader waits for both images to load, then unlocks the button
+function assetLoaded() {
+    loadedAssets++;
+    if (loadedAssets === totalAssets) {
+        const startBtn = document.getElementById('main-start-btn');
+        if (startBtn) {
+            startBtn.textContent = "Тоглоом Эхлэх";
+            startBtn.disabled = false;
+        }
     }
-};
+}
+
+// Attach the onload event to the images
+assets.bankInterior.onload = assetLoaded;
+assets.playerSprite.onload = assetLoaded;
+
+// Fire off the loading
+assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
+assets.playerSprite.src = 'assets/player_walk.png'; 
+
+// EMERGENCY BYPASS: If the images fail to load due to server issues, unlock the button anyway after 2 seconds
+setTimeout(() => {
+    const startBtn = document.getElementById('main-start-btn');
+    if (startBtn && startBtn.disabled) {
+        startBtn.textContent = "Тоглоом Эхлэх (Bypass)";
+        startBtn.disabled = false;
+    }
+}, 2000);
+
 
 // ==========================================
 // 2. CORE ENGINE & STATE
@@ -28,7 +45,7 @@ window.onload = () => {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
-const DEBUG_HITBOXES = false; // Set to true if you want to see red walls
+const DEBUG_HITBOXES = false; // Set to true to see the walls!
 
 function resize() {
   W = window.innerWidth;
@@ -50,11 +67,11 @@ const GS = {
 };
 
 // ==========================================
-// 3. PLAYER SETTINGS (NO SLICING MATH NEEDED!)
+// 3. PLAYER SETTINGS 
 // ==========================================
 const player = {
   x: 950, y: 700, // Spawn Point in Lobby
-  w: 48, h: 96,   // Render size on screen (Adjust if she's too big)
+  w: 48, h: 96,   // Render size on screen
   vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
   currentFrame: 0,  
@@ -70,7 +87,7 @@ const LEVELS = [
     id: 1, name: 'Банкны дотор',
     bgImage: assets.bankInterior,
     
-    // Invisible Walls
+    // Invisible Walls mapped roughly to your bank_interior image
     hitboxes: [
         { x: 0, y: 0, w: 1920, h: 320 },      // Top Counters
         { x: 0, y: 0, w: 100, h: 1080 },      // Left Wall
@@ -122,7 +139,7 @@ document.addEventListener('keyup', e => {
   if (k === 'arrowdown' || k === 's') keys.down = false;
 });
 
-// Mobile Controls
+// Mobile Touch Setup
 const touchControlSetup = (id, key) => {
     const el = document.getElementById(id);
     if(el) {
@@ -247,10 +264,11 @@ function drawPlayer() {
   const drawX = player.x - cam.x;
   const drawY = player.y - cam.y;
 
-  const currentImg = assets.playerFrames[player.currentFrame];
-
-  // If the image is successfully loaded, draw the character!
-  if (currentImg && currentImg.complete && currentImg.width > 0) {
+  // Bulletproof slicing math: automatically uses the image's real size
+  if (assets.playerSprite && assets.playerSprite.complete && assets.playerSprite.width > 0) {
+      // The image is 4 frames wide, so we divide the total width by 4
+      const sWidth = assets.playerSprite.width / 4; 
+      const sHeight = assets.playerSprite.height;
       
       if (player.walking) {
           player.frameTimer++;
@@ -264,17 +282,17 @@ function drawPlayer() {
 
       ctx.save();
       if (player.facing === -1) {
-          // Face left
+          // Flip character left
           ctx.translate(drawX + player.w, drawY);
           ctx.scale(-1, 1);
-          ctx.drawImage(assets.playerFrames[player.currentFrame], 0, 0, player.w, player.h);
+          ctx.drawImage(assets.playerSprite, player.currentFrame * sWidth, 0, sWidth, sHeight, 0, 0, player.w, player.h);
       } else {
           // Face right
-          ctx.drawImage(assets.playerFrames[player.currentFrame], drawX, drawY, player.w, player.h);
+          ctx.drawImage(assets.playerSprite, player.currentFrame * sWidth, 0, sWidth, sHeight, drawX, drawY, player.w, player.h);
       }
       ctx.restore();
   } else {
-      // If the image fails to load, draw the yellow fallback box
+      // Fallback box ONLY if the image failed to load
       ctx.fillStyle = '#FFD700';
       ctx.fillRect(drawX, drawY, player.w, player.h);
   }
@@ -354,10 +372,7 @@ function gameLoop() {
   if (GS.phase === 'playing' || GS.phase === 'dialog') {
     const lv = LEVELS[GS.currentLevel];
     drawBackground(lv);
-    if (DEBUG_HITBOXES) {
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.4)'; 
-        for (let box of lv.hitboxes) ctx.fillRect(box.x - cam.x, box.y - cam.y, box.w, box.h);
-    }
+    drawHitboxes(lv); 
     lv.npcs.forEach(n => drawNPC(n, lv));
     updatePlayer();
     drawPlayer();
@@ -367,7 +382,6 @@ function gameLoop() {
 }
 
 window.beginGame = function() {
-  if (document.querySelector('.start-btn').disabled) return; 
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('touch-controls').style.display = 'flex';
   document.getElementById('hud').style.display = 'flex';
