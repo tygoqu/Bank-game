@@ -31,12 +31,15 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
 
+// Set this to true to see your invisible walls! Set to false to hide them.
+const DEBUG_HITBOXES = true; 
+
 function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
   canvas.width = W;
   canvas.height = H;
-  ctx.imageSmoothingEnabled = false; // Keeps pixel art sharp
+  ctx.imageSmoothingEnabled = false; 
 }
 resize();
 window.addEventListener('resize', resize);
@@ -71,18 +74,31 @@ const player = {
   currentFrame: 0,  
   frameTimer: 0     
 };
+
 // ==========================================
-// 4. LEVEL & NPC DEFINITIONS
+// 4. LEVEL, NPCS, AND HITBOXES (WALLS)
 // ==========================================
 const LEVELS = [
   {
     id: 1, name: 'Банкны дотор',
     bgImage: assets.bankInterior,
-    floorY: 0.85, 
     width: 1920, 
+    height: 1080, // Added map height for 2D scrolling!
+    
+    // INVISIBLE WALLS [x, y, width, height]
+    // You will need to tweak these numbers to perfectly match your PNG layout!
+    hitboxes: [
+        { x: 0, y: 0, w: 1920, h: 120 },     // Top Wall
+        { x: 0, y: 0, w: 50, h: 1080 },      // Left outer wall
+        { x: 1870, y: 0, w: 50, h: 1080 },   // Right outer wall
+        { x: 0, y: 980, w: 1920, h: 100 },   // Bottom outer wall
+        { x: 50, y: 500, w: 400, h: 350 },   // THE VAULT WALLS
+        { x: 600, y: 120, w: 1200, h: 150 }, // The long Teller Counter
+    ],
+    
     npcs: [
       { 
-        x: 400, emoji: '👩‍💼', name: 'Теллер Болормаа', 
+        x: 1000, y: 350, emoji: '👩‍💼', name: 'Теллер Болормаа', 
         dialog: [
           { speaker: 'Болормаа', emoji: '👩‍💼', text: 'Төрийн банкинд тавтай морилно уу.' },
           { speaker: 'Болормаа', emoji: '👩‍💼', text: 'Цахим банк ашиглах талаар суралцах уу?' }
@@ -90,7 +106,7 @@ const LEVELS = [
         minigame: 'gyalsbank'
       },
       { 
-        x: 800, emoji: '👨‍💼', name: 'Менежер', 
+        x: 600, y: 700, emoji: '👨‍💼', name: 'Менежер', 
         dialog: [
           { speaker: 'Менежер', emoji: '👨‍💼', text: 'Та төсвөө хэрхэн зөв хуваарилахыг мэдэх үү?' }
         ],
@@ -101,29 +117,43 @@ const LEVELS = [
 ];
 
 // ==========================================
-// 5. INPUT HANDLING
+// 5. INPUT HANDLING (ADDED UP & DOWN)
 // ==========================================
-const keys = { left: false, right: false };
+const keys = { left: false, right: false, up: false, down: false };
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
-  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
-  if (e.key === ' ' || e.key === 'Enter') handleInteract();
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') keys.left = true;
+  if (k === 'arrowright' || k === 'd') keys.right = true;
+  if (k === 'arrowup' || k === 'w') keys.up = true;
+  if (k === 'arrowdown' || k === 's') keys.down = true;
+  if (k === ' ' || k === 'enter') handleInteract();
 });
 document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
-  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') keys.left = false;
+  if (k === 'arrowright' || k === 'd') keys.right = false;
+  if (k === 'arrowup' || k === 'w') keys.up = false;
+  if (k === 'arrowdown' || k === 's') keys.down = false;
 });
 
+// Mobile Controls
+const touchControlSetup = (id, key) => {
+    const el = document.getElementById(id);
+    if(el) {
+        el.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; });
+        el.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
+    }
+}
+touchControlSetup('btn-left', 'left');
+touchControlSetup('btn-right', 'right');
+touchControlSetup('btn-up', 'up');
+touchControlSetup('btn-down', 'down');
 document.getElementById('btn-interact').addEventListener('click', handleInteract);
 document.getElementById('dialog-top').addEventListener('click', advanceDialog);
-document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); keys.left = true; });
-document.getElementById('btn-left').addEventListener('touchend', e => { e.preventDefault(); keys.left = false; });
-document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); keys.right = true; });
-document.getElementById('btn-right').addEventListener('touchend', e => { e.preventDefault(); keys.right = false; });
 
 // ==========================================
-// 6. UI & HUD
+// 6. UI, HUD & MINIGAMES (KEPT YOUR LOGIC)
 // ==========================================
 function updateHUD() {
   document.getElementById('hud-bal').textContent = `₮ ` + GS.balance.toLocaleString();
@@ -138,11 +168,7 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2100);
 }
 
-// ==========================================
-// 7. DIALOG SYSTEM
-// ==========================================
 let currentNPC = null;
-
 function showDialog(messages, npc) {
   if (!messages || messages.length === 0) return;
   GS.phase = 'dialog';
@@ -150,7 +176,7 @@ function showDialog(messages, npc) {
   GS.dialogQueue = messages;
   currentNPC = npc;
   
-  keys.left = false; keys.right = false; 
+  keys.left = false; keys.right = false; keys.up = false; keys.down = false;
   player.walking = false;
   showDialogStep();
 }
@@ -158,7 +184,6 @@ function showDialog(messages, npc) {
 function showDialogStep() {
   const msg = GS.dialogQueue[GS.dialogStep];
   if (!msg) { closeDialog(); return; }
-  
   document.getElementById('dialog-portrait').textContent = msg.emoji || '🗣️';
   document.getElementById('dialog-speaker').textContent = msg.speaker || '';
   document.getElementById('dialog-text').textContent = msg.text;
@@ -170,9 +195,7 @@ function advanceDialog() {
   GS.dialogStep++;
   if (GS.dialogStep >= GS.dialogQueue.length) {
     closeDialog();
-    if (currentNPC && currentNPC.minigame) {
-        openMiniGame(currentNPC.minigame);
-    }
+    if (currentNPC && currentNPC.minigame) openMiniGame(currentNPC.minigame);
   } else {
     showDialogStep();
   }
@@ -184,94 +207,67 @@ function closeDialog() {
   currentNPC = null;
 }
 
-// ==========================================
-// 8. MINIGAME SYSTEM
-// ==========================================
 function openMiniGame(id) {
   const body = document.getElementById('minigame-body');
   body.innerHTML = '';
   GS.phase = 'minigame';
-
   if (id === 'gyalsbank') {
       document.getElementById('minigame-title').textContent = "Гялс Банк";
-      body.innerHTML = `
-        <div style="background:#0a1528; padding:20px; border-radius:10px; text-align:center;">
-          <h3 style="color:#6495ED; margin-bottom: 10px;">Шилжүүлэг хийх</h3>
-          <p style="margin-bottom: 20px;">Та 50,000₮ шилжүүлэх үү?</p>
-          <button class="choice-btn" onclick="transferMoney()" style="width:100%; justify-content:center;">Шилжүүлэх</button>
-        </div>
-      `;
+      body.innerHTML = `<div style="background:#0a1528; padding:20px; border-radius:10px; text-align:center;"><h3 style="color:#6495ED; margin-bottom: 10px;">Шилжүүлэг хийх</h3><p style="margin-bottom: 20px;">Та 50,000₮ шилжүүлэх үү?</p><button class="choice-btn" onclick="transferMoney()" style="width:100%; justify-content:center;">Шилжүүлэх</button></div>`;
   } else if (id === 'budget') {
       document.getElementById('minigame-title').textContent = "Төсөв зохиох";
-      body.innerHTML = `
-        <div style="background:#0a1528; padding:20px; border-radius:10px;">
-            <p>Зөв төсөвлөлт бол амжилтын үндэс!</p>
-            <br>
-            <button class="choice-btn" onclick="finishMiniGame(50)" style="width:100%; justify-content:center;">Төсвөө батлах (+50 оноо)</button>
-        </div>
-      `;
+      body.innerHTML = `<div style="background:#0a1528; padding:20px; border-radius:10px;"><p>Зөв төсөвлөлт бол амжилтын үндэс!</p><br><button class="choice-btn" onclick="finishMiniGame(50)" style="width:100%; justify-content:center;">Төсвөө батлах (+50 оноо)</button></div>`;
   }
-
   document.getElementById('minigame-overlay').classList.add('open');
 }
 
-window.transferMoney = function() {
-    GS.balance -= 50000;
-    updateHUD();
-    finishMiniGame(20);
-}
-
-window.finishMiniGame = function(points) {
-    GS.points += points;
-    updateHUD();
-    showToast(`+${points} ⭐ Оноо авлаа!`);
-    closeMiniGame();
-}
-
-window.closeMiniGame = function() {
-  document.getElementById('minigame-overlay').classList.remove('open');
-  GS.phase = 'playing';
-}
+window.transferMoney = function() { GS.balance -= 50000; updateHUD(); finishMiniGame(20); }
+window.finishMiniGame = function(points) { GS.points += points; updateHUD(); showToast(`+${points} ⭐ Оноо авлаа!`); closeMiniGame(); }
+window.closeMiniGame = function() { document.getElementById('minigame-overlay').classList.remove('open'); GS.phase = 'playing'; }
 
 function handleInteract() {
   if (GS.phase === 'dialog') { advanceDialog(); return; }
   if (GS.phase !== 'playing') return;
-
   const lv = LEVELS[GS.currentLevel];
   for (const npc of lv.npcs) {
-    const actualDist = Math.abs((player.x + cam.x) - npc.x);
-    if (actualDist < 100) { 
-      showDialog(npc.dialog, npc);
-      return;
-    }
+    // 2D distance calculation
+    const dx = player.x + (player.w/2) - npc.x;
+    const dy = player.y + (player.h/2) - npc.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 100) { showDialog(npc.dialog, npc); return; }
   }
 }
 
 // ==========================================
-// 9. RENDERING ENGINE
+// 7. RENDERING ENGINE & CAMERA
 // ==========================================
-function getFloorY(lv) { return H * lv.floorY; }
-
 function drawBackground(lv) {
   if (lv.bgImage && lv.bgImage.complete) {
-    const imgHeight = H; 
-    const imgWidth = lv.bgImage.width * (H / lv.bgImage.height); 
-    ctx.drawImage(lv.bgImage, -cam.x, 0, imgWidth, imgHeight);
-    lv.width = imgWidth; 
+    ctx.drawImage(lv.bgImage, -cam.x, -cam.y); // Draw based on camera X AND Y
+    lv.width = lv.bgImage.width; 
+    lv.height = lv.bgImage.height;
   } else {
     ctx.fillStyle = '#0a1628';
     ctx.fillRect(0, 0, W, H);
   }
 }
 
+// Draws the red debug boxes over walls
+function drawHitboxes(lv) {
+    if (!DEBUG_HITBOXES) return;
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.4)'; // Red, 40% transparent
+    for (let box of lv.hitboxes) {
+        ctx.fillRect(box.x - cam.x, box.y - cam.y, box.w, box.h);
+    }
+}
+
 function drawPlayer() {
   const lv = LEVELS[GS.currentLevel];
   if (!lv) return;
-  const fy = getFloorY(lv);
-  const py = fy - player.h;
+  const drawX = player.x - cam.x;
+  const drawY = player.y - cam.y;
 
   if (assets.playerSprite && assets.playerSprite.complete) {
-      // Animate frame
       if (player.walking) {
           player.frameTimer++;
           if (player.frameTimer >= 8) { 
@@ -280,70 +276,99 @@ function drawPlayer() {
               player.frameTimer = 0;
           }
       } else {
-          player.currentFrame = 0; // Idle frame
+          player.currentFrame = 0; 
       }
 
-      // Draw sprite
       ctx.save();
       if (player.facing === -1) {
-          ctx.translate(player.x + player.w, py);
+          ctx.translate(drawX + player.w, drawY);
           ctx.scale(-1, 1);
           ctx.drawImage(assets.playerSprite, player.currentFrame * player.spriteWidth, 0, player.spriteWidth, player.spriteHeight, 0, 0, player.w, player.h);
       } else {
-          ctx.drawImage(assets.playerSprite, player.currentFrame * player.spriteWidth, 0, player.spriteWidth, player.spriteHeight, player.x, py, player.w, player.h);
+          ctx.drawImage(assets.playerSprite, player.currentFrame * player.spriteWidth, 0, player.spriteWidth, player.spriteHeight, drawX, drawY, player.w, player.h);
       }
       ctx.restore();
   } else {
-      // Fallback if sprite is missing
       ctx.fillStyle = '#6495ED';
-      ctx.fillRect(player.x, py, player.w, player.h);
+      ctx.fillRect(drawX, drawY, player.w, player.h);
   }
 }
 
 function drawNPC(npc, lv) {
-  const screenX = npc.x - cam.x;
-  if (screenX < -100 || screenX > W + 100) return; 
+  const drawX = npc.x - cam.x;
+  const drawY = npc.y - cam.y;
   
-  const fy = getFloorY(lv);
+  if (drawX < -100 || drawX > W + 100 || drawY < -100 || drawY > H + 100) return; 
+  
   ctx.font = '40px serif';
   ctx.textAlign = 'center';
-  ctx.fillText(npc.emoji, screenX, fy - 20);
+  ctx.fillText(npc.emoji, drawX, drawY);
 
-  const actualDist = Math.abs((player.x + cam.x) - npc.x);
-  if (actualDist < 100) {
+  const dx = player.x + (player.w/2) - npc.x;
+  const dy = player.y + (player.h/2) - npc.y;
+  if (Math.sqrt(dx*dx + dy*dy) < 100) {
     ctx.fillStyle = 'rgba(255,215,0,0.9)';
     ctx.font = 'bold 14px system-ui';
-    ctx.fillText('🗨️ [Space / Tap]', screenX, fy - 70);
+    ctx.fillText('🗨️ [Space / Tap]', drawX, drawY - 50);
   }
 }
 
 // ==========================================
-// 10. PHYSICS & MOVEMENT
+// 8. TOP-DOWN PHYSICS & COLLISION
 // ==========================================
+// This function checks if a future X,Y position touches any invisible walls
+function checkCollision(newX, newY, hitboxes) {
+    // We create a "bounding box" for the player's feet
+    const pw = player.w - 10; 
+    const ph = 20; // Only check collision at the bottom of the player (their feet)
+    const px = newX + 5;
+    const py = newY + player.h - ph;
+
+    for (let box of hitboxes) {
+        if (px < box.x + box.w &&
+            px + pw > box.x &&
+            py < box.y + box.h &&
+            py + ph > box.y) {
+            return true; // BAM! Hit a wall.
+        }
+    }
+    return false; // Free to walk
+}
+
 function updatePlayer() {
   if (GS.phase !== 'playing') return;
   const lv = LEVELS[GS.currentLevel];
 
-  player.vx = 0;
+  player.vx = 0; player.vy = 0;
   if (keys.left) { player.vx = -player.speed; player.facing = -1; }
   if (keys.right) { player.vx = player.speed; player.facing = 1; }
+  if (keys.up) { player.vy = -player.speed; }
+  if (keys.down) { player.vy = player.speed; }
   
-  player.walking = player.vx !== 0;
+  player.walking = (player.vx !== 0 || player.vy !== 0);
 
-  const worldX = player.x + cam.x;
-  const newWorldX = Math.max(0, Math.min(lv.width - player.w, worldX + player.vx));
+  // Apply Movement & Collision separately for X and Y so you slide along walls
+  let nextX = player.x + player.vx;
+  let nextY = player.y + player.vy;
 
-  const deadL = W * 0.4, deadR = W * 0.6;
-  const newScreenX = newWorldX - cam.x;
-  
-  if (newScreenX < deadL) cam.x = Math.max(0, newWorldX - deadL);
-  else if (newScreenX > deadR) cam.x = Math.min(lv.width - W, newWorldX - deadR);
+  if (!checkCollision(nextX, player.y, lv.hitboxes)) player.x = nextX;
+  if (!checkCollision(player.x, nextY, lv.hitboxes)) player.y = nextY;
 
-  player.x = newWorldX - cam.x;
+  // Update Camera to follow player in BOTH directions
+  cam.x = player.x - (W / 2) + (player.w / 2);
+  cam.y = player.y - (H / 2) + (player.h / 2);
+
+  // Clamp camera so it doesn't look outside the map image
+  if (lv.width) {
+      if (cam.x < 0) cam.x = 0;
+      if (cam.y < 0) cam.y = 0;
+      if (cam.x > lv.width - W) cam.x = lv.width - W;
+      if (cam.y > lv.height - H) cam.y = lv.height - H;
+  }
 }
 
 // ==========================================
-// 11. MAIN LOOP
+// 9. MAIN LOOP
 // ==========================================
 function gameLoop() {
   ctx.clearRect(0, 0, W, H);
@@ -351,6 +376,7 @@ function gameLoop() {
   if (GS.phase === 'playing' || GS.phase === 'dialog') {
     const lv = LEVELS[GS.currentLevel];
     drawBackground(lv);
+    drawHitboxes(lv); // Shows the red walls if DEBUG_HITBOXES is true!
     lv.npcs.forEach(n => drawNPC(n, lv));
     updatePlayer();
     drawPlayer();
