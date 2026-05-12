@@ -3,18 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Bank Quest</title>
+<title>Bank Quest: Санхүүгийн Аялал</title>
 <style>
-/* --- YOUR EXACT UI CSS HAS BEEN PRESERVED HERE --- */
+/* CORE CSS */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:'Segoe UI',system-ui,sans-serif;}
 #gameCanvas{display:block;touch-action:none; image-rendering: pixelated;}
 
+/* HUD */
 #hud{position:fixed;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,15,40,0.97)0%,rgba(10,15,40,0)100%);padding:10px 14px 20px;display:flex;align-items:center;gap:10px;pointer-events:none;z-index:50;}
 .hud-pill{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 12px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);}
 .hud-pill .val{color:#FFD700;}
 #hud-level{margin-left:auto;background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.6);color:#FFD700;}
 
+/* DIALOG */
 #dialog-box{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(8,12,35,0.98)0%,rgba(8,12,35,0.92)100%);border-top:2px solid rgba(100,149,237,0.5);padding:0;z-index:60;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);max-height:55vh;display:flex;flex-direction:column;}
 #dialog-box.open{transform:translateY(0);}
 #dialog-top{display:flex;align-items:flex-start;gap:12px;padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,0.08);}
@@ -23,29 +25,41 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:
 #dialog-text{font-size:14px;color:#E8E8F0;line-height:1.65;flex:1;}
 #dialog-tap{font-size:11px;color:rgba(255,255,255,0.3);margin-top:6px;font-style:italic;}
 
+/* CHOICES & MINIGAMES */
 #choices-area{padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
 .choice-btn{background:rgba(100,149,237,0.12);border:1.5px solid rgba(100,149,237,0.3);border-radius:10px;padding:11px 14px;color:#E0E8FF;font-size:13px;font-weight:600;text-align:left;cursor:pointer;display:flex;align-items:center;gap:9px;transition:all 0.15s;}
-.choice-btn:active{background:rgba(100,149,237,0.28);border-color:rgba(100,149,237,0.8);transform:scale(0.98);}
 .choice-btn.correct{background:rgba(50,205,50,0.2);border-color:#32CD32;color:#90EE90;}
 .choice-btn.wrong{background:rgba(220,50,50,0.2);border-color:#DC3232;color:#FFB0B0;}
-.choice-icon{font-size:18px;flex-shrink:0;}
 
+/* MINIGAME OVERLAY */
+#minigame-overlay{position:fixed;inset:0;z-index:80;background:rgba(5,8,25,0.97);display:flex;flex-direction:column;overflow-y:auto;transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);}
+#minigame-overlay.open{transform:translateY(0);}
+#minigame-header{background:linear-gradient(135deg,#0a1628,#0d2040);border-bottom:1px solid rgba(100,149,237,0.3);padding:14px 16px 12px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:2;}
+#minigame-close{margin-left:auto;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+#minigame-title{font-size:16px;font-weight:800;color:#fff;}
+#minigame-sub{font-size:12px;color:#6495ED;margin-top:2px;}
+#minigame-body{padding:16px;flex:1; color: white;}
+
+/* TOUCH CONTROLS */
 #touch-controls{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px 20px;z-index:55;pointer-events:none;}
 .dpad{display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px;gap:4px;pointer-events:all;}
 .dpad-btn{background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;user-select:none;}
-.dpad-btn:active,.dpad-btn.pressed{background:rgba(255,255,255,0.3);}
+.dpad-btn:active{background:rgba(255,255,255,0.3);}
 #btn-left{grid-column:1;grid-row:1;} #btn-right{grid-column:3;grid-row:1;}
 .action-btns{display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:all;}
-.action-btn{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;user-select:none;border:2px solid;background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.8);}
+.action-btn{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;border:2px solid;background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.8);}
 
+/* TITLE SCREEN */
 #title-screen{position:fixed;inset:0;z-index:200;background:linear-gradient(160deg,#050d2a 0%,#0a1a3d 50%,#041020 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
 .title-bank-name{font-size:13px;color:#6495ED;letter-spacing:4px;text-transform:uppercase;font-weight:700;margin-bottom:10px;}
 .title-logo{font-size:clamp(40px,12vw,72px);font-weight:900;color:#fff;line-height:1;margin-bottom:6px;}
 .title-logo span{color:#FFD700;}
-.title-sub{font-size:clamp(13px,3.5vw,18px);color:#8BA8D4;margin-bottom:32px;font-weight:600;}
-.start-btn{background:linear-gradient(135deg,#FFD700,#FFA500);color:#0a1020;font-size:17px;font-weight:900;border:none;border-radius:50px;padding:16px 48px;cursor:pointer;}
+.start-btn{background:linear-gradient(135deg,#FFD700,#FFA500);color:#0a1020;font-size:17px;font-weight:900;border:none;border-radius:50px;padding:16px 48px;cursor:pointer; transition: 0.3s;}
+.start-btn:disabled{opacity: 0.5; cursor: not-allowed;}
 
-/* (I have hidden the map screen/minigame CSS to save space here, but you can paste your old CSS blocks back in here if needed for the UI) */
+/* TOAST */
+.toast{position:fixed;top:70px;right:12px;background:rgba(50,205,50,0.9);color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:800;z-index:300;animation:toastAnim 2s forwards;pointer-events:none;}
+@keyframes toastAnim{0%{opacity:0;transform:translateX(30px);}15%{opacity:1;transform:translateX(0);}75%{opacity:1;}100%{opacity:0;transform:translateX(30px);}}
 
 </style>
 </head>
@@ -53,7 +67,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:
 
 <canvas id="gameCanvas"></canvas>
 
-<div id="hud">
+<div id="hud" style="display:none;">
   <div class="hud-pill">💰 <span class="val" id="hud-bal">₮ 500,000</span></div>
   <div class="hud-pill">⭐ <span class="val" id="hud-pts">0</span></div>
   <div class="hud-pill" id="hud-level">Үе 1</div>
@@ -71,7 +85,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:
   <div id="choices-area"></div>
 </div>
 
-<div id="touch-controls">
+<div id="touch-controls" style="display:none;">
   <div class="dpad">
     <div class="dpad-btn" id="btn-left">◀</div>
     <div class="dpad-btn" id="btn-right">▶</div>
@@ -81,17 +95,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:
   </div>
 </div>
 
+<div id="minigame-overlay">
+  <div id="minigame-header">
+    <div>
+      <div id="minigame-title">Mini Game</div>
+      <div id="minigame-sub"></div>
+    </div>
+    <div id="minigame-close" onclick="closeMiniGame()">❌ Хаах</div>
+  </div>
+  <div id="minigame-body"></div>
+</div>
+
 <div id="title-screen">
   <div style="position:relative;z-index:1;width:100%;max-width:360px;">
     <div class="title-bank-name">🏦 Төрийн Банк</div>
     <div class="title-logo">Bank<br><span>Quest</span></div>
-    <div class="title-sub">Санхүүгийн Аялал</div>
-    <button class="start-btn" onclick="beginGame()">Тоглоом Эхлэх</button>
+    <button class="start-btn" onclick="beginGame()" disabled>Уншиж байна...</button>
   </div>
 </div>
 
 <script src="game.js"></script>
-</body>
-</html>
 </body>
 </html>
