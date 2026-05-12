@@ -1,10 +1,18 @@
 // ==========================================
-// 1. ASSET LOADER
+// 1. ASSET LOADER (FLIPBOOK VERSION)
 // ==========================================
 const assets = {
     bankInterior: new Image(),
-    playerSprite: new Image()
+    // Create an array to hold your 4 frames
+    playerFrames: [new Image(), new Image(), new Image(), new Image()]
 };
+
+// Make sure these match your file names exactly!
+assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
+assets.playerFrames[0].src = 'assets/player_walk_1.png'; 
+assets.playerFrames[1].src = 'assets/player_walk_2.png'; 
+assets.playerFrames[2].src = 'assets/player_walk_3.png'; 
+assets.playerFrames[3].src = 'assets/player_walk_4.png';
 
 // Update these paths to match your folder exactly
 assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
@@ -43,28 +51,19 @@ const player = {
 const cam = { x: 0, y: 0 };
 
 // ==========================================
-// 3. PLAYER SETTINGS (CALIBRATED)
+// 3. PLAYER SETTINGS
 // ==========================================
 const player = {
-  x: 800, y: 500, 
-  
-  // 1. RENDER SIZE: Increase these to make her bigger!
-  // Try 80 and 160 to make her stand out in the bank interior.
-  w: 80, 
-  h: 160, 
-  
-  vx: 0, vy: 0, speed: 6, // Slightly faster speed for a bigger character
+  x: 950, y: 700, // Lobby Spawn
+  w: 40, h: 80,   // Render size on screen (adjust these if she looks too fat/skinny)
+  vx: 0, vy: 0, speed: 5,
   facing: 1, walking: false,
   
-  // 2. SPRITE MATH: Check your file properties!
-  // Right-click player_walk.png -> Properties -> Details.
-  // Take 'Width' and divide by 4. Put that number here:
-  spriteWidth: 128,  // Change this to (Total Image Width / 4)
-  spriteHeight: 256, // Change this to (Total Image Height)
-  
-  currentFrame: 0,  
+  // Animation trackers
+  currentFrame: 0, 
   frameTimer: 0     
 };
+const cam = { x: 0, y: 0 };
 
 
 // ==========================================
