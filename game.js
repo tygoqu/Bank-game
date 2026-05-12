@@ -7,7 +7,7 @@ const assets = {
 };
 
 let loadedAssets = 0;
-const totalAssets = 2;
+const totalAssets = 0; // 
 
 function assetLoaded() {
     loadedAssets++;
