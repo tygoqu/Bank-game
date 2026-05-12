@@ -1,9 +1,24 @@
 // ==========================================
-// 1. ASSET LOADER
+// 1. ASSET LOADER (WITH PRELOADER)
 // ==========================================
 const assets = {
     bankInterior: new Image()
 };
+
+// We grab the start button so we can control it
+const startBtn = document.querySelector('.start-btn');
+startBtn.textContent = "Уншиж байна... (Loading...)";
+startBtn.disabled = true; // Disable it initially
+startBtn.style.opacity = "0.5";
+
+// When the massive image finally finishes loading, unlock the button!
+assets.bankInterior.onload = function() {
+    startBtn.textContent = "Тоглоом Эхлэх (Start Game)";
+    startBtn.disabled = false;
+    startBtn.style.opacity = "1";
+};
+
+// Now we tell it what image to load
 assets.bankInterior.src = 'assets/maps/bank_interior.png'; 
 
 // ==========================================
