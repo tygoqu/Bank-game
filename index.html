@@ -1,31 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My 2D Game</title>
+    <title>Business Ethics RPG</title>
     <style>
-        /* This centers the game on your screen and makes the background dark */
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #222;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { 
+            margin: 0; padding: 0; height: 100vh; background: #222; 
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
-        /* This makes your pixel art stay sharp instead of getting blurry */
+        
+        /* THE GAME CANVAS */
         canvas {
             image-rendering: pixelated; 
             border: 4px solid #444;
             box-shadow: 0px 0px 20px rgba(0,0,0,0.5);
+            position: absolute; /* Keeps it in the background */
+            z-index: 1;
         }
+
+        /* YOUR PRESENTATION UI (Hidden by default) */
+        #presentation-wrapper {
+            display: none; /* Hides the dialog until we trigger it */
+            position: absolute;
+            z-index: 10; /* Puts it ON TOP of the canvas */
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); /* Darkens the game behind it */
+            align-items: center; justify-content: center;
+        }
+
+        #presentation-container {
+            width: 100%; max-width: 960px; height: 540px; 
+            position: relative; overflow: hidden; border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* Your existing Slide CSS */
+        .bg-sunset { background: linear-gradient(145deg, #e39fb6 0%, #b25899 40%, #512b7a 100%); }
+        .bg-room { background: linear-gradient(145deg, #405752 0%, #22302b 100%); }
+        .slide { position: absolute; inset: 0; padding: 50px; display: flex; flex-direction: column; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+        .slide.active { opacity: 1; pointer-events: auto; }
+        h1 { font-size: 3.5rem; margin-bottom: 10px; text-align: center; }
+        h2 { font-size: 2.2rem; color: #FFD700; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
+        .content { font-size: 1.6rem; line-height: 1.6; color: #f0f0f5; }
+        .dialogue-box { background: rgba(0, 0, 0, 0.4); border-left: 5px solid #FFD700; padding: 20px; margin: 20px 0; border-radius: 4px; font-style: italic; }
+        .controls { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 40px; }
+        button { background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 12px 24px; font-size: 1.2rem; border-radius: 30px; cursor: pointer; transition: all 0.2s; }
+        button:hover:not(:disabled) { background: #FFD700; color: #1a1a2e; border-color: #FFD700; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .choices-container { display: flex; gap: 20px; justify-content: center; margin-top: 30px; }
+        .choice-btn { background: linear-gradient(135deg, #4169E1, #1a3a8f); border: none; padding: 15px 30px; border-radius: 8px; font-size: 1.4rem; }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <div id="presentation-wrapper">
+        <div id="presentation-container" class="bg-sunset">
+            <div id="slide-content"></div>
+            <div class="controls">
+                <button id="btn-prev" onclick="prevSlide()">◀ Өмнөх</button>
+                <button id="btn-next" onclick="nextSlide()">Дараах ▶</button>
+                <button id="btn-exit" onclick="closeDialog()" style="display:none; background: red;">Гарах (Exit)</button>
+            </div>
+        </div>
+    </div>
 
     <script src="game.js"></script>
 
